@@ -1,0 +1,72 @@
+ function downloadPDF() {
+    // Ensure all editors are saved before capturing
+    tinymce.triggerSave();
+
+    const form = document.querySelector(".main-form"); // Select the form container
+    const inputs = form.querySelectorAll("input, select, textarea"); // Select all inputs
+
+    // Remove borders and outlines temporarily
+    inputs.forEach((input) => {
+        input.style.outline = "none";
+        input.style.border = "none";
+    });
+
+    // Remove TinyMCE editor's toolbar and prepare the content for the PDF
+   
+
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+        const plainTextDiv = document.createElement("div");
+        plainTextDiv.innerHTML = textarea.value; // Use the raw HTML content
+        textarea.parentNode.insertBefore(plainTextDiv, textarea);
+        textarea.style.display = 'none'; // Hide the original textarea
+    });
+
+    // Hide buttons to prevent them from being captured in the PDF
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => button.style.display = 'none');
+
+    // Capture the form and generate the PDF
+    html2canvas(form, {
+        allowTaint: true,
+        useCORS: true
+    }).then(canvas => {
+        const imgData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF("p", "mm", "a4");
+
+        const imgWidth = 210; // Width of A4 in mm
+        const pageHeight = 295; // Height of A4 in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        // Add image to the PDF
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+
+        // Save the PDF
+        pdf.save("form-data.pdf");
+
+        // Restore input fields and buttons after capture
+        inputs.forEach((input) => {
+            input.style.border = ""; // Restore borders
+            input.style.outline = ""; // Restore outlines
+        });
+
+        // Restore TinyMCE editor
+        textareas.forEach(textarea => {
+            textarea.style.display = 'block'; // Show textarea
+            textarea.parentNode.querySelector('div').remove(); // Remove the plain text div
+        });
+
+        buttons.forEach(button => button.style.display = 'inline-block'); // Restore buttons
+    });
+}
